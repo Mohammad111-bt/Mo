@@ -1,0 +1,24 @@
+{
+  "name": "Mo's Summer HQ",
+  "short_name": "Mo HQ",
+  "description": "Mo's personal summer productivity and habit tracker",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#7F77DD",
+  "theme_color": "#7F77DD",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
