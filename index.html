@@ -430,39 +430,73 @@ const LEVEL_XP = [0,200,500,1000,2000,3500,5500,8000,11000,15000,20000];
 
 const today = new Date();
 const todayKey = today.toISOString().split('T')[0];
-const DOW = today.getDay();
-const isMMA = [1,3,5].includes(DOW);
-const isHifz = DOW === 5;
-const isGymDay = DOW !== 5 && DOW !== 0; // assuming Fri/Sun rest
 
 document.getElementById('date-label').textContent = today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'});
 
-const TASKS = [
-  { id:'fajr',   name:'Fajr prayer',         sub:'5:00 AM · start the day',             xp:15, icon:'🌙', section:'Morning', core:true },
-  { id:'wird',   name:'Quran Wird',           sub:'Daily recitation',                    xp:20, icon:'📖', section:'Morning', core:true },
-  { id:'med1',   name:'Hair medicine — dose 1', sub:'Every 12 hours · 5–6 AM',           xp:10, icon:'💊', section:'Morning', core:true },
-  { id:'ml',     name:'ML course block',      sub:'45–60 min · notebook open',           xp:30, icon:'🧠', section:'Morning', core:true },
-  { id:'gym',    name:'Gym session',          sub:'PPL / Upper-Lower · 12–3 PM',         xp:40, icon:'🏋️', section:'Afternoon', core:true, off: !isGymDay, offText:'Rest day today — no gym' },
-  { id:'dhuhr',  name:'Dhuhr prayer',         sub:'Midday',                              xp:10, icon:'☀️', section:'Afternoon', core:true },
-  { id:'mma',    name:'MMA training',         sub:'Mon · Wed · Fri · 4–6 PM',            xp:35, icon:'🥊', section:'Afternoon', core:true, off: !isMMA, offText:'Rest day — no MMA today' },
-  { id:'hifz',   name:'Quran Hifz session',   sub:'1x/week · Friday',                   xp:25, icon:'⭐', section:'Afternoon', core:false, off: !isHifz, offText:'Not today — Friday only' },
-  { id:'asr',    name:'Asr prayer',           sub:'Afternoon',                           xp:10, icon:'🌤️', section:'Afternoon', core:true },
-  { id:'maghrib',name:'Maghrib prayer',       sub:'Sunset',                              xp:10, icon:'🌇', section:'Evening',   core:true },
-  { id:'isha',   name:'Isha prayer',          sub:'Night',                               xp:10, icon:'🌃', section:'Night',     core:true },
-  { id:'med2',   name:'Hair medicine — dose 2', sub:'Every 12 hours · ~10–11 PM',        xp:10, icon:'💊', section:'Night',     core:true },
-  { id:'oil',    name:'Hair oil massage',     sub:'Once daily · scalp massage',          xp:10, icon:'💧', section:'Night',     core:true },
-  { id:'acne',   name:'Acne cream',           sub:'Before sleep · in the dark',          xp:10, icon:'🧴', section:'Night',     core:true },
+// ── ROTATING GYM / MMA / REST CYCLE ─────────────────────────────
+// Cycle: Gym, Gym, Gym, MMA, MMA, MMA, Rest (7-day rotating from June 14 2026)
+const CYCLE_START = new Date('2026-06-14');
+function getDayType(dateStr) {
+  const d = new Date(dateStr);
+  const diffDays = Math.floor((d - CYCLE_START) / 86400000);
+  const pos = ((diffDays % 7) + 7) % 7;
+  if (pos < 3) return 'gym';   // days 0,1,2 = Gym
+  if (pos < 6) return 'mma';   // days 3,4,5 = MMA
+  return 'rest';               // day 6 = Rest
+}
+
+const todayType = getDayType(todayKey);
+const isGymDay  = todayType === 'gym';
+const isMMADay  = todayType === 'mma';
+const isRestDay = todayType === 'rest';
+const isHifz    = today.getDay() === 5; // Friday
+
+// ML study sessions — 3 per day: morning, afternoon review, evening practice
+const ML_SESSIONS = [
+  { id:'ml1', name:'ML — lecture block',     sub:'6:00 AM · 45–60 min · notebook open · Andrew Ng', xp:30, icon:'🧠', section:'Morning' },
+  { id:'ml2', name:'ML — review & notes',    sub:'After gym · 20 min · reread your notes out loud',  xp:15, icon:'📝', section:'Afternoon' },
+  { id:'ml3', name:'ML — practice / labs',   sub:'Evening · coding assignment or quiz',              xp:20, icon:'💻', section:'Evening' },
 ];
 
+const TASKS = [
+  // Morning
+  { id:'fajr',  name:'Fajr prayer',            sub:'5:00 AM · start the day',              xp:15, icon:'🌙', section:'Morning' },
+  { id:'wird',  name:'Quran Wird',              sub:'Daily recitation',                     xp:20, icon:'📖', section:'Morning' },
+  { id:'med1',  name:'Hair medicine — dose 1',  sub:'Every 12 hours · 5–6 AM',              xp:10, icon:'💊', section:'Morning' },
+  ...ML_SESSIONS.filter(t => t.section==='Morning'),
+
+  // Afternoon
+  { id:'dhuhr', name:'Dhuhr prayer',            sub:'Midday',                               xp:10, icon:'☀️', section:'Afternoon' },
+  { id:'gym',   name:'Gym session',             sub:'PPL / Upper-Lower · 12–3 PM',          xp:40, icon:'🏋️', section:'Afternoon', off:!isGymDay,  offText: isRestDay ? '😴 Rest day — recover well' : 'MMA day — no gym today' },
+  { id:'mma',   name:'MMA training',            sub:'4–6 PM · striking + grappling',        xp:35, icon:'🥊', section:'Afternoon', off:!isMMADay,  offText: isRestDay ? '😴 Rest day — no MMA today' : 'Gym day — no MMA today' },
+  { id:'hifz',  name:'Quran Hifz session',      sub:'1x/week · Friday',                     xp:25, icon:'⭐', section:'Afternoon', off:!isHifz,    offText:'Not today — Friday only' },
+  ...ML_SESSIONS.filter(t => t.section==='Afternoon'),
+  { id:'asr',   name:'Asr prayer',              sub:'Afternoon',                            xp:10, icon:'🌤️', section:'Afternoon' },
+
+  // Evening
+  { id:'maghrib',name:'Maghrib prayer',         sub:'Sunset',                               xp:10, icon:'🌇', section:'Evening' },
+  ...ML_SESSIONS.filter(t => t.section==='Evening'),
+
+  // Night
+  { id:'isha',  name:'Isha prayer',             sub:'Night',                                xp:10, icon:'🌃', section:'Night' },
+  { id:'med2',  name:'Hair medicine — dose 2',  sub:'Every 12 hours · ~10–11 PM',           xp:10, icon:'💊', section:'Night' },
+  { id:'oil',   name:'Hair oil massage',        sub:'Once daily · scalp massage',           xp:10, icon:'💧', section:'Night' },
+  { id:'acne',  name:'Acne cream',              sub:'Before sleep · in the dark',           xp:10, icon:'🧴', section:'Night' },
+];
+
+// Show today's workout type in header
+const typeLabel = isGymDay ? '🏋️ Gym day' : isMMADay ? '🥊 MMA day' : '😴 Rest day';
+document.getElementById('date-label').textContent += ' · ' + typeLabel;
+
 function getState() {
-  try { return JSON.parse(localStorage.getItem('mamie_day_'+todayKey) || '{"done":{},"xp":0}'); } catch(e){ return {done:{},xp:0}; }
+  try { return JSON.parse(localStorage.getItem('mo_day_'+todayKey) || '{"done":{},"xp":0}'); } catch(e){ return {done:{},xp:0}; }
 }
-function saveState(s) { localStorage.setItem('mamie_day_'+todayKey, JSON.stringify(s)); }
-function getLifeXP() { return parseInt(localStorage.getItem('mamie_life_xp')||'0'); }
-function setLifeXP(v) { localStorage.setItem('mamie_life_xp', v); }
-function getStreak() { try { return JSON.parse(localStorage.getItem('mamie_streak')||'{"count":0,"last":null}'); } catch(e){ return {count:0,last:null}; } }
-function setStreak(s) { localStorage.setItem('mamie_streak', JSON.stringify(s)); }
-function getDayXP(k) { try { const s = JSON.parse(localStorage.getItem('mamie_day_'+k)||'{}'); return s.xp||0; } catch(e){ return 0; } }
+function saveState(s) { localStorage.setItem('mo_day_'+todayKey, JSON.stringify(s)); }
+function getLifeXP() { return parseInt(localStorage.getItem('mo_life_xp')||'0'); }
+function setLifeXP(v) { localStorage.setItem('mo_life_xp', v); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('mo_streak')||'{"count":0,"last":null}'); } catch(e){ return {count:0,last:null}; } }
+function setStreak(s) { localStorage.setItem('mo_streak', JSON.stringify(s)); }
+function getDayXP(k) { try { const s = JSON.parse(localStorage.getItem('mo_day_'+k)||'{}'); return s.xp||0; } catch(e){ return 0; } }
 
 let state = getState();
 
@@ -493,8 +527,8 @@ function updateStats() {
 
   const lvl = getLevel(lifeXP);
   const lvlMin = LEVEL_XP[lvl-1];
-  const lvlMax = LEVEL_XP[lvl] || lvlMin + 5000;
-  const lvlPct = Math.min(100, Math.round((lifeXP - lvlMin)/(lvlMax - lvlMin)*100));
+  const lvlMax = LEVEL_XP[lvl] || lvlMin+5000;
+  const lvlPct = Math.min(100, Math.round((lifeXP-lvlMin)/(lvlMax-lvlMin)*100));
   document.getElementById('level-tag').textContent = 'Level '+lvl+' — '+(LEVEL_NAMES[lvl]||'Legend');
   document.getElementById('level-xp').textContent = lifeXP+' / '+lvlMax+' XP';
   document.getElementById('xp-fill').style.width = lvlPct+'%';
@@ -503,39 +537,39 @@ function updateStats() {
   document.getElementById('streak-count').textContent = streak.count;
 
   const circ = 176;
-  document.getElementById('ring-circle').style.strokeDashoffset = circ - (circ * pct / 100);
+  document.getElementById('ring-circle').style.strokeDashoffset = circ-(circ*pct/100);
   document.getElementById('ring-pct').textContent = pct+'%';
   document.getElementById('ring-title').textContent = pct===100 ? '🎉 Day complete!' : "Today's progress";
   document.getElementById('ring-sub').textContent = pct===100 ? 'Streak locked in!' : pct>=75 ? 'Almost there!' : pct>=50 ? 'Over halfway!' : pct>=25 ? 'Keep going!' : 'Start checking off!';
 
-  if (pct === 100) {
+  if (pct===100) {
     document.getElementById('complete-banner').style.display = 'block';
     const s = getStreak();
     if (s.last !== todayKey) {
       const yest = new Date(today); yest.setDate(yest.getDate()-1);
       const yStr = yest.toISOString().split('T')[0];
-      s.count = s.last === yStr ? s.count+1 : 1;
+      s.count = s.last===yStr ? s.count+1 : 1;
       s.last = todayKey;
       setStreak(s);
       document.getElementById('streak-count').textContent = s.count;
-      if (s.count > 1) showToast('🔥 '+s.count+' day streak!');
+      if (s.count>1) showToast('🔥 '+s.count+' day streak!');
     }
   }
 }
 
 function toggle(id) {
-  const task = TASKS.find(t => t.id === id);
+  const task = TASKS.find(t => t.id===id);
   if (!task || task.off) return;
   const was = !!state.done[id];
   state.done[id] = !was;
   const lifeXP = getLifeXP();
   if (!was) {
-    state.xp = (state.xp||0) + task.xp;
-    setLifeXP(lifeXP + task.xp);
+    state.xp = (state.xp||0)+task.xp;
+    setLifeXP(lifeXP+task.xp);
     showToast('+'+task.xp+' XP — '+task.name+'!');
   } else {
-    state.xp = Math.max(0, (state.xp||0) - task.xp);
-    setLifeXP(Math.max(0, lifeXP - task.xp));
+    state.xp = Math.max(0,(state.xp||0)-task.xp);
+    setLifeXP(Math.max(0,lifeXP-task.xp));
   }
   saveState(state);
   renderTasks();
@@ -546,7 +580,7 @@ function renderTasks() {
   const sections = ['Morning','Afternoon','Evening','Night'];
   let html = '';
   sections.forEach(sec => {
-    const tasks = TASKS.filter(t => t.section === sec);
+    const tasks = TASKS.filter(t => t.section===sec);
     if (!tasks.length) return;
     html += '<div class="section-lbl">'+sec+'</div>';
     tasks.forEach(t => {
@@ -555,7 +589,7 @@ function renderTasks() {
       html += '<div class="task'+(done?' done':'')+(disabled?' disabled':'')+'" onclick="toggle(\''+t.id+'\')">';
       html += '<div class="check'+(done?' on':'')+'"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
       html += '<div class="task-icon-wrap">'+t.icon+'</div>';
-      html += '<div class="task-info"><div class="task-name">'+t.name+'</div><div class="task-sub">'+(disabled ? t.offText : t.sub)+'</div></div>';
+      html += '<div class="task-info"><div class="task-name">'+t.name+'</div><div class="task-sub">'+(disabled?t.offText:t.sub)+'</div></div>';
       html += '<div class="task-xp">+'+t.xp+' XP</div>';
       html += '</div>';
     });
@@ -569,12 +603,13 @@ function buildStreak() {
     const d = new Date(today); d.setDate(d.getDate()-i);
     const dStr = d.toISOString().split('T')[0];
     const isToday = i===0;
-    const hadXP = getDayXP(dStr) > 0;
-    html += '<div class="streak-day'+(hadXP?' done':'')+(isToday?' today':'')+'"><span class="day-name">'+DAYS_SHORT[d.getDay()]+'</span><span>'+(d.getDate())+'</span></div>';
+    const hadXP = getDayXP(dStr)>0;
+    const dtype = getDayType(dStr);
+    const icon = dtype==='gym'?'🏋️':dtype==='mma'?'🥊':'😴';
+    html += '<div class="streak-day'+(hadXP?' done':'')+(isToday?' today':'')+'"><span class="day-name">'+DAYS_SHORT[d.getDay()]+'</span><span>'+(isToday?'●':icon)+'</span></div>';
   }
   document.getElementById('streak-grid').innerHTML = html;
 
-  // Monthly calendar
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
   let mhtml = '';
@@ -583,8 +618,8 @@ function buildStreak() {
   for (let d=1; d<=daysInMonth; d++) {
     const dd = new Date(today.getFullYear(), today.getMonth(), d);
     const dStr = dd.toISOString().split('T')[0];
-    const isTd = d === today.getDate();
-    const hadXP = getDayXP(dStr) > 0;
+    const isTd = d===today.getDate();
+    const hadXP = getDayXP(dStr)>0;
     mhtml += '<div style="aspect-ratio:1;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:'+(isTd?'600':'400')+';background:'+(hadXP?'var(--teal)':isTd?'var(--purple-light)':'transparent')+';color:'+(hadXP?'white':isTd?'var(--purple)':'var(--text-muted)')+';border:'+(isTd&&!hadXP?'1.5px solid var(--purple)':'0.5px solid transparent')+'">' + d + '</div>';
   }
   document.getElementById('month-grid').innerHTML = mhtml;
@@ -598,7 +633,7 @@ function showTab(name) {
   if (name==='streak') buildStreak();
 }
 
-// PWA install prompt
+// PWA install
 let deferredPrompt;
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
@@ -608,10 +643,7 @@ window.addEventListener('beforeinstallprompt', e => {
 function triggerInstall() {
   if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(() => {
-      deferredPrompt = null;
-      document.getElementById('install-bar').style.display = 'none';
-    });
+    deferredPrompt.userChoice.then(() => { deferredPrompt=null; document.getElementById('install-bar').style.display='none'; });
   } else {
     showToast('On iPhone: tap Share → Add to Home Screen');
   }
@@ -619,6 +651,86 @@ function triggerInstall() {
 
 renderTasks();
 updateStats();
+
+// ── NOTIFICATIONS + SERVICE WORKER ──────────────────────────────
+const REMINDERS_BASE = [
+  { hour:5,  min:0,  title:'🌙 Fajr time',           body:'Start your day with prayer and Wird.' },
+  { hour:5,  min:10, title:'💊 Hair medicine',         body:'Dose 1 — take it now before you forget.' },
+  { hour:6,  min:0,  title:'🧠 ML lecture time',       body:'45–60 min focused study. Notebook open.' },
+  { hour:11, min:45, title:'⏰ Gym in 15 min',         body:'Get ready — gym session starts at noon.', onlyOn:'gym' },
+  { hour:12, min:0,  title:'🏋️ Gym time!',             body:'PPL / Upper-Lower. Let\'s go Mo.',        onlyOn:'gym' },
+  { hour:12, min:0,  title:'🥊 MMA time!',             body:'Get to training. You earned this.',        onlyOn:'mma' },
+  { hour:12, min:10, title:'☀️ Dhuhr prayer',           body:'Pray before you head out.' },
+  { hour:14, min:0,  title:'📝 ML review — 20 min',    body:'Reread your notes from this morning out loud.' },
+  { hour:15, min:45, title:'🌤️ Asr prayer',             body:'Time for Asr.' },
+  { hour:18, min:30, title:'🌇 Maghrib prayer',         body:'Sun is setting — time to pray.' },
+  { hour:19, min:0,  title:'💻 ML practice / labs',    body:'Evening coding session — quiz or assignment.' },
+  { hour:21, min:30, title:'🌃 Isha + night routine',   body:'Isha prayer, hair meds, oil massage, acne cream.' },
+  { hour:22, min:0,  title:'💊 Hair medicine',          body:'Dose 2 — every 12 hours. Take it now.' },
+  { hour:22, min:15, title:'💧 Hair oil massage',       body:'Daily scalp massage before sleep.' },
+  { hour:22, min:30, title:'🧴 Acne cream',             body:'Apply before sleep — in the dark.' },
+  { hour:22, min:45, title:'😴 Wind down',              body:'Put the phone down. Sleep by 11. You did great today Mo.' },
+];
+
+let swReg = null;
+
+async function registerSW() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    swReg = await navigator.serviceWorker.register('./sw.js');
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data && e.data.type === 'RESCHEDULE') sendScheduleToSW();
+    });
+  } catch(err) { console.warn('SW failed:', err); }
+}
+
+function sendScheduleToSW() {
+  if (!swReg) return;
+  const target = swReg.active || swReg.installing || swReg.waiting;
+  if (!target) return;
+  target.postMessage({ type:'SCHEDULE', reminders:REMINDERS_BASE, todayType });
+}
+
+async function requestNotifications() {
+  if (!('Notification' in window)) { showToast('Notifications not supported on this browser'); return; }
+  if (Notification.permission === 'denied') { showToast('Blocked — enable notifications in browser settings'); return; }
+  let perm = Notification.permission;
+  if (perm !== 'granted') perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    await registerSW();
+    await navigator.serviceWorker.ready;
+    swReg = await navigator.serviceWorker.getRegistration();
+    sendScheduleToSW();
+    showToast('🔔 Reminders on — works even when app is closed!');
+    const b = document.getElementById('notif-banner');
+    if (b) b.remove();
+  } else {
+    showToast('Notifications blocked — enable in browser settings');
+  }
+}
+
+function renderNotifBanner() {
+  if (document.getElementById('notif-banner')) return;
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  if (perm === 'unsupported') return;
+  if (perm === 'granted') {
+    registerSW().then(async () => {
+      await navigator.serviceWorker.ready;
+      swReg = await navigator.serviceWorker.getRegistration();
+      sendScheduleToSW();
+    });
+    return;
+  }
+  const banner = document.createElement('div');
+  banner.id = 'notif-banner';
+  banner.style.cssText = 'background:var(--amber-light);border:0.5px solid var(--amber);border-radius:14px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;';
+  banner.innerHTML = '<span style="font-size:20px;">🔔</span><p style="font-size:13px;color:var(--amber-dark);flex:1;">Enable reminders — fire even when app is closed.</p><button onclick="requestNotifications();" style="background:var(--amber);color:white;border:none;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;">Turn on</button>';
+  const tasksEl = document.getElementById('tasks-list');
+  tasksEl.parentNode.insertBefore(banner, tasksEl);
+}
+
+document.addEventListener('DOMContentLoaded', renderNotifBanner);
+if (document.readyState !== 'loading') renderNotifBanner();
 </script>
 </body>
 </html>
